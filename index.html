@@ -40,6 +40,7 @@
         <button class="nav-btn active" data-page="dashboard">🏠 Dashboard</button>
         <button class="nav-btn" data-page="chapters">📘 Chapters</button>
         <button class="nav-btn" data-page="research">📚 Research Library</button>
+        <button class="nav-btn" data-page="documents">📎 PDF Library</button>
         <button class="nav-btn" data-page="tasks">✅ Tasks</button>
         <button class="nav-btn" data-page="schedule">📅 Calendar</button>
         <button class="nav-btn" data-page="settings">⚙️ Settings</button>
@@ -89,6 +90,11 @@
       <section id="research" class="page">
         <div class="toolbar"><input id="researchSearch" placeholder="Search title, author, theme, notes..."><button id="addResearchBtn" class="primary">+ Add Source</button></div>
         <div id="researchGrid" class="record-grid"></div>
+      </section>
+
+      <section id="documents" class="page">
+        <div class="toolbar"><input id="documentSearch" placeholder="Search PDFs, course notes, or files..."><button id="addDocumentBtn" class="primary">+ Add PDF</button></div>
+        <div id="documentGrid" class="record-grid"></div>
       </section>
 
       <section id="tasks" class="page">
