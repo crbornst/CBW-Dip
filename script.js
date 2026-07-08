@@ -1,4 +1,3 @@
-// LOGIN FIX BUILD 2026-07-08
 import { auth, db } from './firebase-config.js';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js';
 import { collection, doc, setDoc, addDoc, deleteDoc, onSnapshot, serverTimestamp, getDocs, writeBatch } from 'https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js';
@@ -31,10 +30,30 @@ async function authAction(mode){
 
 onAuthStateChanged(auth, async (user)=>{
   state.unsub.forEach(u=>u()); state.unsub=[]; state.user=user;
-  $('#authScreen').hidden=!!user; $('#app').hidden=!user;
-  if(!user) return;
-  $('#userEmail').textContent=user.email;
-  await seedChapters(); listenAll();
+
+  const authScreen = $('#authScreen');
+  const appShell = $('#app');
+
+  if (user) {
+    authScreen.hidden = true;
+    authScreen.style.display = 'none';
+    appShell.hidden = false;
+    appShell.style.display = 'grid';
+    $('#userEmail').textContent = user.email;
+
+    try {
+      await seedChapters();
+      listenAll();
+    } catch (err) {
+      toast(err.message);
+      console.error(err);
+    }
+  } else {
+    authScreen.hidden = false;
+    authScreen.style.display = 'grid';
+    appShell.hidden = true;
+    appShell.style.display = 'none';
+  }
 });
 
 async function seedChapters(){
