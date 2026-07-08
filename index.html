@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>My DiP</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="authScreen" class="auth-screen">
+    <section class="auth-card">
+      <div class="brand-mark">🎓</div>
+      <h1>My DiP</h1>
+      <p>Dissertation in Practice Command Center</p>
+      <label>Email<input id="email" type="email" autocomplete="email" placeholder="you@example.com"></label>
+      <label>Password<input id="password" type="password" autocomplete="current-password" placeholder="At least 6 characters"></label>
+      <div class="auth-actions">
+        <button id="signInBtn">Sign in</button>
+        <button id="signUpBtn" class="secondary">Create account</button>
+      </div>
+      <p id="authMessage" class="message"></p>
+    </section>
+  </div>
+
+  <div id="app" class="app hidden">
+    <aside class="sidebar">
+      <div class="logo">
+        <span>🎓</span>
+        <div>
+          <h1>My DiP</h1>
+          <p>Dissertation Command Center</p>
+        </div>
+      </div>
+      <nav>
+        <button data-view="dashboard" class="active">Dashboard</button>
+        <button data-view="chapters">Chapters</button>
+        <button data-view="tasks">Tasks</button>
+        <button data-view="research">Research Library</button>
+        <button data-view="schedule">Master Schedule</button>
+      </nav>
+      <div class="side-footer">
+        <p id="syncStatus">Cloud ready</p>
+        <button id="exportBtn" class="ghost">Export backup</button>
+        <label class="ghost file-label">Import backup<input id="importFile" type="file" accept="application/json"></label>
+        <button id="signOutBtn" class="ghost">Sign out</button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Dissertation in Practice</p>
+          <h2 id="viewTitle">Dashboard</h2>
+        </div>
+        <button id="openQuickAdd" class="primary">+ Add</button>
+      </header>
+
+      <section id="dashboard" class="view active-view">
+        <div class="hero">
+          <div>
+            <h3>Welcome back.</h3>
+            <p>Choose what needs your attention, keep your research organized, and stay ready for what is coming next.</p>
+          </div>
+          <div class="hero-stat">
+            <span id="overallProgress">0%</span>
+            <small>overall chapter progress</small>
+          </div>
+        </div>
+        <div class="grid dashboard-grid">
+          <article class="card">
+            <div class="card-head"><h3>🎯 Today</h3><button data-add="schedule">+ item</button></div>
+            <div id="todayList" class="list empty-ready"></div>
+          </article>
+          <article class="card">
+            <div class="card-head"><h3>📖 Currently Reading</h3><button data-add="research">+ source</button></div>
+            <div id="readingList" class="list empty-ready"></div>
+          </article>
+          <article class="card wide">
+            <div class="card-head"><h3>👀 Coming Up</h3><button data-add="schedule">+ event</button></div>
+            <div id="comingList" class="list empty-ready"></div>
+          </article>
+        </div>
+        <article class="card">
+          <div class="card-head"><h3>📘 Chapter Snapshot</h3><button data-view-jump="chapters">Open chapters</button></div>
+          <div id="chapterSnapshot" class="chapter-row"></div>
+        </article>
+      </section>
+
+      <section id="chapters" class="view">
+        <div class="section-actions"><button data-add="chapter" class="primary">+ Add chapter</button></div>
+        <div id="chaptersGrid" class="chapter-grid"></div>
+      </section>
+
+      <section id="tasks" class="view">
+        <div class="section-actions"><button data-add="task" class="primary">+ Add task</button></div>
+        <div id="tasksTable" class="table-wrap"></div>
+      </section>
+
+      <section id="research" class="view">
+        <div class="section-actions"><button data-add="research" class="primary">+ Add source</button></div>
+        <div id="researchTable" class="table-wrap"></div>
+      </section>
+
+      <section id="schedule" class="view">
+        <div class="section-actions"><button data-add="schedule" class="primary">+ Add schedule item</button></div>
+        <div id="scheduleTable" class="table-wrap"></div>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="editorDialog">
+    <form method="dialog" class="editor">
+      <div class="dialog-head">
+        <h3 id="dialogTitle">Add item</h3>
+        <button id="closeDialog" class="icon" value="cancel">×</button>
+      </div>
+      <div id="formFields" class="fields"></div>
+      <div class="dialog-actions">
+        <button id="deleteBtn" type="button" class="danger hidden">Delete</button>
+        <span></span>
+        <button value="cancel" class="secondary">Cancel</button>
+        <button id="saveBtn" type="submit" class="primary">Save</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script type="module" src="script.js"></script>
+</body>
+</html>
