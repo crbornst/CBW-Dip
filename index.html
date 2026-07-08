@@ -7,120 +7,121 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div id="authScreen" class="auth-screen">
-    <section class="auth-card">
+  <div id="toast" class="toast" hidden></div>
+
+  <section id="authScreen" class="auth-screen">
+    <div class="auth-card">
       <div class="brand-mark">🎓</div>
       <h1>My Dissertation Dashboard</h1>
-      <p>Dissertation in Practice Command Center</p>
-      <label>Email<input id="email" type="email" autocomplete="email" placeholder="you@example.com"></label>
-      <label>Password<input id="password" type="password" autocomplete="current-password" placeholder="At least 6 characters"></label>
-      <div class="auth-actions">
-        <button id="signInBtn">Sign in</button>
-        <button id="signUpBtn" class="secondary">Create account</button>
+      <p class="subtitle">Dissertation in Practice | Ed.D.</p>
+      <p class="tagline">Organize • Research • Write • Graduate</p>
+      <div class="auth-form">
+        <label>Email<input id="email" type="email" autocomplete="email" placeholder="you@example.com"></label>
+        <label>Password<input id="password" type="password" autocomplete="current-password" placeholder="At least 6 characters"></label>
+        <div class="auth-actions">
+          <button id="loginBtn" class="primary">Log in</button>
+          <button id="signupBtn" class="secondary">Create account</button>
+        </div>
+        <p id="authMessage" class="message"></p>
       </div>
-      <p id="authMessage" class="message"></p>
-    </section>
-  </div>
+    </div>
+  </section>
 
-  <div id="app" class="app hidden">
+  <main id="app" class="app-shell" hidden>
     <aside class="sidebar">
-      <div class="logo">
-        <span>🎓</span>
+      <div class="side-brand">
+        <div class="brand-mark small">🎓</div>
         <div>
-          <h1>My Dissertation Dashboard</h1>
-          <p>Dissertation Command Center</p>
+          <h2>My Dissertation Dashboard</h2>
+          <p>Ed.D. workspace</p>
         </div>
       </div>
-      <nav>
-        <button data-view="dashboard" class="active">Dashboard</button>
-        <button data-view="chapters">Chapters</button>
-        <button data-view="tasks">Tasks</button>
-        <button data-view="research">Research Library</button>
-        <button data-view="schedule">Master Schedule</button>
+      <nav class="nav">
+        <button class="nav-btn active" data-page="dashboard">🏠 Dashboard</button>
+        <button class="nav-btn" data-page="chapters">📘 Chapters</button>
+        <button class="nav-btn" data-page="research">📚 Research Library</button>
+        <button class="nav-btn" data-page="tasks">✅ Tasks</button>
+        <button class="nav-btn" data-page="schedule">📅 Calendar</button>
+        <button class="nav-btn" data-page="settings">⚙️ Settings</button>
       </nav>
       <div class="side-footer">
-        <p id="syncStatus">Cloud ready</p>
-        <button id="exportBtn" class="ghost">Export backup</button>
-        <label class="ghost file-label">Import backup<input id="importFile" type="file" accept="application/json"></label>
-        <button id="signOutBtn" class="ghost">Sign out</button>
+        <span id="userEmail"></span>
+        <button id="logoutBtn" class="text-btn">Log out</button>
       </div>
     </aside>
 
-    <main class="main">
+    <section class="content">
       <header class="topbar">
         <div>
-          <p class="eyebrow">Dissertation in Practice</p>
-          <h2 id="viewTitle">Dashboard</h2>
+          <h1 id="pageTitle">Dashboard</h1>
+          <p id="pageSub">Your dissertation command center.</p>
         </div>
-        <button id="openQuickAdd" class="primary">+ Add</button>
+        <button id="quickAddBtn" class="primary">+ Quick Add</button>
       </header>
 
-      <section id="dashboard" class="view active-view">
-        <div class="hero">
+      <section id="dashboard" class="page active">
+        <div class="hero-card">
           <div>
-            <h3>Welcome back.</h3>
-            <p>Choose what needs your attention, keep your research organized, and stay ready for what is coming next.</p>
+            <p class="eyebrow">Dissertation in Practice</p>
+            <h2>My Dissertation Dashboard</h2>
+            <p>Organize • Research • Write • Graduate</p>
           </div>
           <div class="hero-stat">
             <span id="overallProgress">0%</span>
-            <small>overall chapter progress</small>
+            <small>overall progress</small>
           </div>
         </div>
-        <div class="grid dashboard-grid">
-          <article class="card">
-            <div class="card-head"><h3>🎯 Today</h3><button data-add="schedule">+ item</button></div>
-            <div id="todayList" class="list empty-ready"></div>
-          </article>
-          <article class="card">
-            <div class="card-head"><h3>📖 Currently Reading</h3><button data-add="research">+ source</button></div>
-            <div id="readingList" class="list empty-ready"></div>
-          </article>
-          <article class="card wide">
-            <div class="card-head"><h3>👀 Coming Up</h3><button data-add="schedule">+ event</button></div>
-            <div id="comingList" class="list empty-ready"></div>
-          </article>
+        <div class="grid cards-3">
+          <article class="panel"><h3>🎯 Today</h3><div id="todayList" class="mini-list"></div></article>
+          <article class="panel"><h3>📖 Currently Reading</h3><div id="readingList" class="mini-list"></div></article>
+          <article class="panel"><h3>👀 Coming Up</h3><div id="comingList" class="mini-list"></div></article>
         </div>
-        <article class="card">
-          <div class="card-head"><h3>📘 Chapter Snapshot</h3><button data-view-jump="chapters">Open chapters</button></div>
-          <div id="chapterSnapshot" class="chapter-row"></div>
+        <div class="grid cards-2">
+          <article class="panel"><h3>📘 Chapter Progress</h3><div id="chapterProgress" class="chapter-progress"></div></article>
+          <article class="panel"><h3>📊 Snapshot</h3><div id="snapshot" class="stats"></div></article>
+        </div>
+      </section>
+
+      <section id="chapters" class="page">
+        <div id="chaptersGrid" class="grid cards-5"></div>
+      </section>
+
+      <section id="research" class="page">
+        <div class="toolbar"><input id="researchSearch" placeholder="Search title, author, theme, notes..."><button id="addResearchBtn" class="primary">+ Add Source</button></div>
+        <div id="researchGrid" class="record-grid"></div>
+      </section>
+
+      <section id="tasks" class="page">
+        <div class="toolbar"><input id="taskSearch" placeholder="Search tasks..."><button id="addTaskBtn" class="primary">+ Add Task</button></div>
+        <div id="taskGrid" class="record-grid"></div>
+      </section>
+
+      <section id="schedule" class="page">
+        <div class="toolbar"><input id="scheduleSearch" placeholder="Search schedule..."><button id="addScheduleBtn" class="primary">+ Add Event</button></div>
+        <div id="scheduleGrid" class="timeline"></div>
+      </section>
+
+      <section id="settings" class="page">
+        <article class="panel settings-panel">
+          <h3>Settings and Backups</h3>
+          <p>Your data saves to Firebase under your signed-in account.</p>
+          <div class="settings-actions">
+            <button id="exportBtn" class="secondary">Export Backup</button>
+            <label class="secondary file-label">Import Backup<input id="importFile" type="file" accept="application/json" hidden></label>
+          </div>
+          <p class="hint">Use Export before big updates. Import can restore tasks, research, schedule, and chapters.</p>
         </article>
       </section>
 
-      <section id="chapters" class="view">
-        <div class="section-actions"><button data-add="chapter" class="primary">+ Add chapter</button></div>
-        <div id="chaptersGrid" class="chapter-grid"></div>
-      </section>
+      <footer class="footer">© 2026 My Dissertation Dashboard</footer>
+    </section>
+  </main>
 
-      <section id="tasks" class="view">
-        <div class="section-actions"><button data-add="task" class="primary">+ Add task</button></div>
-        <div id="tasksTable" class="table-wrap"></div>
-      </section>
-
-      <section id="research" class="view">
-        <div class="section-actions"><button data-add="research" class="primary">+ Add source</button></div>
-        <div id="researchTable" class="table-wrap"></div>
-      </section>
-
-      <section id="schedule" class="view">
-        <div class="section-actions"><button data-add="schedule" class="primary">+ Add schedule item</button></div>
-        <div id="scheduleTable" class="table-wrap"></div>
-      </section>
-    </main>
-  </div>
-
-  <dialog id="editorDialog">
-    <form method="dialog" class="editor">
-      <div class="dialog-head">
-        <h3 id="dialogTitle">Add item</h3>
-        <button id="closeDialog" class="icon" value="cancel">×</button>
-      </div>
-      <div id="formFields" class="fields"></div>
-      <div class="dialog-actions">
-        <button id="deleteBtn" type="button" class="danger hidden">Delete</button>
-        <span></span>
-        <button value="cancel" class="secondary">Cancel</button>
-        <button id="saveBtn" type="submit" class="primary">Save</button>
-      </div>
+  <dialog id="modal" class="modal">
+    <form method="dialog" id="modalForm">
+      <div class="modal-head"><h2 id="modalTitle">Add item</h2><button value="cancel" class="icon-btn">×</button></div>
+      <div id="modalFields" class="modal-fields"></div>
+      <div class="modal-actions"><button value="cancel" class="secondary">Cancel</button><button id="modalSave" value="default" class="primary">Save</button></div>
     </form>
   </dialog>
 

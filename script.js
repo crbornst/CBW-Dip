@@ -1,197 +1,120 @@
 import { auth, db } from './firebase-config.js';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js';
-import { doc, getDoc, setDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js';
+import { collection, doc, setDoc, addDoc, deleteDoc, onSnapshot, serverTimestamp, getDocs, writeBatch } from 'https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js';
 
-const $ = (s, root=document) => root.querySelector(s);
-const $$ = (s, root=document) => Array.from(root.querySelectorAll(s));
+const $ = (s) => document.querySelector(s);
+const $$ = (s) => Array.from(document.querySelectorAll(s));
+const state = { user:null, tasks:[], research:[], schedule:[], chapters:[], unsub:[] };
+const CHAPTERS = [
+  'Chapter 1 – Introduction','Chapter 2 – Literature Review','Chapter 3 – Methodology','Chapter 4 – Findings','Chapter 5 – Discussion and Recommendations'
+];
 const todayISO = () => new Date().toISOString().slice(0,10);
-const addDaysISO = days => { const d = new Date(); d.setDate(d.getDate()+days); return d.toISOString().slice(0,10); };
-const uid = () => crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
+const addDays = (n) => { const d=new Date(); d.setDate(d.getDate()+n); return d.toISOString().slice(0,10); };
+const path = (name) => collection(db, 'users', state.user.uid, name);
+const dpath = (name,id) => doc(db, 'users', state.user.uid, name, id);
+function toast(msg){ const t=$('#toast'); t.textContent=msg; t.hidden=false; setTimeout(()=>t.hidden=true,2800); }
+function fmtDate(s){ if(!s) return 'No date'; const [y,m,d]=s.split('-'); return new Date(Number(y),Number(m)-1,Number(d)).toLocaleDateString(undefined,{month:'short',day:'numeric'}); }
+function esc(v=''){ return String(v).replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); }
 
-const defaultData = () => ({
-  chapters: [
-    {id:uid(), title:'Chapter 1 – Introduction', status:'In Progress', progress:10, currentFocus:'Problem of Practice', wordGoal:6000, currentWords:0, notes:''},
-    {id:uid(), title:'Chapter 2 – Literature Review', status:'Not Started', progress:0, currentFocus:'Themes and sources', wordGoal:12000, currentWords:0, notes:''},
-    {id:uid(), title:'Chapter 3 – Methodology', status:'Not Started', progress:0, currentFocus:'Research design', wordGoal:8000, currentWords:0, notes:''},
-    {id:uid(), title:'Chapter 4 – Findings', status:'Waiting', progress:0, currentFocus:'Data collection', wordGoal:9000, currentWords:0, notes:''},
-    {id:uid(), title:'Chapter 5 – Discussion & Recommendations', status:'Waiting', progress:0, currentFocus:'Not started', wordGoal:8000, currentWords:0, notes:''}
-  ],
-  tasks: [],
-  research: [],
-  schedule: []
+$('#signupBtn').onclick = async () => authAction('signup');
+$('#loginBtn').onclick = async () => authAction('login');
+$('#logoutBtn').onclick = () => signOut(auth);
+async function authAction(mode){
+  const email=$('#email').value.trim(); const pass=$('#password').value;
+  $('#authMessage').textContent='';
+  try{
+    if(mode==='signup') await createUserWithEmailAndPassword(auth,email,pass);
+    else await signInWithEmailAndPassword(auth,email,pass);
+  }catch(e){ $('#authMessage').textContent = e.message.replace('Firebase: ',''); }
+}
+
+onAuthStateChanged(auth, async (user)=>{
+  state.unsub.forEach(u=>u()); state.unsub=[]; state.user=user;
+  $('#authScreen').hidden=!!user; $('#app').hidden=!user;
+  if(!user) return;
+  $('#userEmail').textContent=user.email;
+  await seedChapters(); listenAll();
 });
 
-let state = defaultData();
-let currentUser = null;
-let saveTimer = null;
-let editing = { type:null, id:null };
+async function seedChapters(){
+  const snap = await getDocs(path('chapters'));
+  if(!snap.empty) return;
+  const batch = writeBatch(db);
+  CHAPTERS.forEach((title,i)=> batch.set(dpath('chapters',String(i+1)), { title, status: i===0?'In progress':'Not started', progress: i===0?10:0, currentFocus:'', currentWords:0, wordGoal:0, notes:'', order:i+1, updatedAt: serverTimestamp() }));
+  await batch.commit();
+}
+function listenAll(){
+  ['tasks','research','schedule','chapters'].forEach(name=>{
+    const unsub=onSnapshot(path(name),(snap)=>{ state[name]=snap.docs.map(d=>({id:d.id,...d.data()})); render(); },(err)=>toast(err.message));
+    state.unsub.push(unsub);
+  });
+}
 
-const schemas = {
-  chapter: [
-    ['title','Chapter title','text','full'], ['status','Status','select','', ['Not Started','In Progress','Waiting','Complete']], ['progress','Progress %','number'], ['currentFocus','Current focus','text'], ['wordGoal','Word goal','number'], ['currentWords','Current words','number'], ['notes','Notes','textarea','full']
-  ],
-  task: [
-    ['title','Task','text','full'], ['focus','Focus','select','', ['Writing','Reading','Research','Editing','Chair/Committee','Coursework','Administration']], ['priority','Priority','select','', ['High','Medium','Low']], ['status','Status','select','', ['Not Started','In Progress','Waiting','Complete']], ['dueDate','Due date','date'], ['notes','Notes','textarea','full']
-  ],
-  research: [
-    ['title','Title','text','full'], ['authors','Authors','text'], ['year','Year','number'], ['sourceType','Source type','select','', ['Journal Article','Book','Dissertation','Report','Website','Government Document']], ['status','Status','select','', ['To Read','Reading','Finished','Cited']], ['theme','Theme','text'], ['journal','Journal / Book','text'], ['volume','Volume','text'], ['issue','Issue','text'], ['pages','Pages','text'], ['doi','DOI / URL','url','full'], ['publisher','Publisher','text'], ['apaCitation','APA Citation','textarea','full'], ['purpose','Purpose','textarea','full'], ['researchQuestions','Research Question(s)','textarea','full'], ['methodology','Methodology','textarea','full'], ['participants','Participants / Setting','textarea','full'], ['keyFindings','Key Findings','textarea','full'], ['quotes','Important Quotes','textarea','full'], ['limitations','Limitations','textarea','full'], ['useInDissertation','Application to My Dissertation','textarea','full'], ['notes','Personal Notes','textarea','full']
-  ],
-  schedule: [
-    ['title','Event','text','full'], ['date','Date','date'], ['category','Category','select','', ['Dissertation','Coursework','Personal','Home','Business','Family']], ['type','Type','select','', ['Writing','Reading','Meeting','Assignment','Presentation','Milestone','Deadline','Study Block']], ['priority','Priority','select','', ['High','Medium','Low']], ['status','Status','select','', ['Scheduled','In Progress','Complete','Canceled']], ['relatedChapter','Related chapter','text'], ['notes','Notes','textarea','full']
-  ]
+$$('.nav-btn').forEach(btn=>btn.onclick=()=>showPage(btn.dataset.page));
+function showPage(page){
+  $$('.nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.page===page));
+  $$('.page').forEach(p=>p.classList.toggle('active',p.id===page));
+  const titles={dashboard:['Dashboard','Your dissertation command center.'],chapters:['Chapters','Track chapter progress and notes.'],research:['Research Library','Collect sources, citations, and literature notes.'],tasks:['Tasks','Manage action items for school and dissertation work.'],schedule:['Calendar','See dated events, coursework, and dissertation milestones.'],settings:['Settings','Backups and account tools.']};
+  $('#pageTitle').textContent=titles[page][0]; $('#pageSub').textContent=titles[page][1];
+}
+$('#quickAddBtn').onclick=()=>openModal('task'); $('#addTaskBtn').onclick=()=>openModal('task'); $('#addResearchBtn').onclick=()=>openModal('research'); $('#addScheduleBtn').onclick=()=>openModal('schedule');
+$('#researchSearch').oninput=renderResearch; $('#taskSearch').oninput=renderTasks; $('#scheduleSearch').oninput=renderSchedule;
+
+const schemas={
+  task:{ title:'Task', collection:'tasks', fields:[
+    ['task','Task','text','full'], ['focus','Focus','select','', ['Writing','Reading','Research','Editing','Coursework','Meeting','Email','Personal']], ['priority','Priority','select','', ['High','Medium','Low']], ['status','Status','select','', ['Not started','In progress','Waiting','Complete']], ['dueDate','Due date','date'], ['today','Show on Today','checkbox'], ['details','Details','textarea','full']
+  ]},
+  research:{ title:'Source', collection:'research', fields:[
+    ['title','Title','text','full'], ['authors','Authors','text'], ['year','Year','number'], ['status','Status','select','', ['To read','Reading','Summarized','Cited']], ['theme','Theme / Section','text'], ['journal','Journal / Book','text'], ['volume','Volume','text'], ['issue','Issue','text'], ['pages','Pages','text'], ['doi','DOI / URL','url','full'], ['citation','APA Citation','textarea','full'], ['notes','Notes / Application','textarea','full']
+  ]},
+  schedule:{ title:'Event', collection:'schedule', fields:[
+    ['event','Event','text','full'], ['date','Date','date'], ['category','Category','select','', ['Dissertation','Coursework','Personal','Home','Business','Family']], ['type','Type','select','', ['Writing','Reading','Meeting','Assignment','Milestone','Deadline','Other']], ['priority','Priority','select','', ['High','Medium','Low']], ['status','Status','select','', ['Scheduled','In progress','Complete']], ['notes','Notes','textarea','full']
+  ]},
+  chapter:{ title:'Chapter', collection:'chapters', fields:[
+    ['title','Title','text','full'], ['status','Status','select','', ['Not started','In progress','Waiting','Complete']], ['progress','Progress %','number'], ['currentFocus','Current focus','text','full'], ['currentWords','Current words','number'], ['wordGoal','Word goal','number'], ['notes','Notes','textarea','full']
+  ]}
 };
-
-function setMessage(msg){ $('#authMessage').textContent = msg || ''; }
-function setSync(msg){ $('#syncStatus').textContent = msg; }
-
-$('#signUpBtn').addEventListener('click', async () => {
-  try { setMessage(''); await createUserWithEmailAndPassword(auth, $('#email').value, $('#password').value); }
-  catch(e){ setMessage(cleanFirebaseError(e)); }
+function openModal(type,item={}){
+  const schema=schemas[type]; $('#modalTitle').textContent=(item.id?'Edit ':'Add ')+schema.title;
+  $('#modalFields').innerHTML=schema.fields.map(f=>fieldHTML(f,item[f[0]])).join('');
+  $('#modal').dataset.type=type; $('#modal').dataset.id=item.id||''; $('#modal').showModal();
+}
+function fieldHTML(f,val=''){
+  const [key,label,type,cls,opts]=f; const full=cls==='full'?'full':'';
+  if(type==='select') return `<label class="${full}">${label}<select name="${key}">${opts.map(o=>`<option ${o===(val||'')?'selected':''}>${esc(o)}</option>`).join('')}</select></label>`;
+  if(type==='textarea') return `<label class="${full}">${label}<textarea name="${key}">${esc(val||'')}</textarea></label>`;
+  if(type==='checkbox') return `<label class="${full} check"><input type="checkbox" name="${key}" ${val?'checked':''}> ${label}</label>`;
+  return `<label class="${full}">${label}<input name="${key}" type="${type}" value="${esc(val||'')}"></label>`;
+}
+$('#modalForm').addEventListener('submit',async(e)=>{
+  e.preventDefault(); const type=$('#modal').dataset.type; const id=$('#modal').dataset.id; const schema=schemas[type]; const fd=new FormData(e.target); const data={updatedAt:serverTimestamp()};
+  schema.fields.forEach(([key,,fieldType])=>{ data[key]= fieldType==='checkbox' ? Boolean(fd.get(key)) : (fd.get(key)||'').toString(); if(fieldType==='number') data[key]=Number(data[key]||0); });
+  try{ if(id) await setDoc(dpath(schema.collection,id),data,{merge:true}); else await addDoc(path(schema.collection),{...data,createdAt:serverTimestamp()}); $('#modal').close(); toast('Saved'); } catch(err){ toast(err.message); }
 });
-$('#signInBtn').addEventListener('click', async () => {
-  try { setMessage(''); await signInWithEmailAndPassword(auth, $('#email').value, $('#password').value); }
-  catch(e){ setMessage(cleanFirebaseError(e)); }
-});
-$('#signOutBtn').addEventListener('click', () => signOut(auth));
+async function del(collectionName,id){ if(confirm('Delete this item?')) await deleteDoc(dpath(collectionName,id)); }
+window.editItem=(type,id)=>{ const arr=state[schemas[type].collection]; openModal(type,arr.find(x=>x.id===id)); };
+window.deleteItem=(col,id)=>del(col,id);
 
-onAuthStateChanged(auth, async user => {
-  currentUser = user;
-  if(user){
-    $('#authScreen').classList.add('hidden'); $('#app').classList.remove('hidden');
-    await loadCloud(); render();
-  } else {
-    $('#authScreen').classList.remove('hidden'); $('#app').classList.add('hidden');
-  }
-});
-
-function cleanFirebaseError(e){
-  const code = e?.code || '';
-  if(code.includes('invalid-credential')) return 'The email or password did not match.';
-  if(code.includes('email-already-in-use')) return 'That email already has an account. Try signing in.';
-  if(code.includes('weak-password')) return 'Use a password with at least 6 characters.';
-  if(code.includes('invalid-email')) return 'Enter a valid email address.';
-  return e.message || 'Something went wrong.';
-}
-
-async function loadCloud(){
-  setSync('Loading cloud data...');
-  const ref = doc(db, 'users', currentUser.uid, 'app', 'data');
-  const snap = await getDoc(ref);
-  if(snap.exists()) state = { ...defaultData(), ...snap.data() };
-  else { state = defaultData(); await saveCloudNow(); }
-  setSync('Saved to cloud');
-}
-
-function scheduleSave(){
-  if(!currentUser) return;
-  setSync('Saving...');
-  clearTimeout(saveTimer);
-  saveTimer = setTimeout(saveCloudNow, 550);
-}
-async function saveCloudNow(){
-  if(!currentUser) return;
-  const ref = doc(db, 'users', currentUser.uid, 'app', 'data');
-  await setDoc(ref, { ...state, updatedAt: serverTimestamp() }, { merge:false });
-  setSync(`Saved ${new Date().toLocaleTimeString([], {hour:'numeric',minute:'2-digit'})}`);
-}
-
-$$('nav button[data-view]').forEach(btn => btn.addEventListener('click', () => showView(btn.dataset.view)));
-$$('[data-view-jump]').forEach(btn => btn.addEventListener('click', () => showView(btn.dataset.viewJump)));
-function showView(id){
-  $$('nav button').forEach(b => b.classList.toggle('active', b.dataset.view === id));
-  $$('.view').forEach(v => v.classList.toggle('active-view', v.id === id));
-  $('#viewTitle').textContent = ({dashboard:'Dashboard',chapters:'Chapters',tasks:'Tasks',research:'Research Library',schedule:'Master Schedule'})[id] || 'Dashboard';
-}
-
-$('#openQuickAdd').addEventListener('click', () => openEditor('schedule'));
-$$('[data-add]').forEach(btn => btn.addEventListener('click', () => openEditor(btn.dataset.add)));
-$('#editorDialog').addEventListener('submit', ev => { ev.preventDefault(); saveEditor(); });
-$('#deleteBtn').addEventListener('click', deleteCurrent);
-
-function openEditor(type, id=null){
-  editing = {type, id};
-  const collection = type === 'chapter' ? 'chapters' : type === 'task' ? 'tasks' : type === 'research' ? 'research' : 'schedule';
-  const item = id ? state[collection].find(x => x.id === id) : {};
-  $('#dialogTitle').textContent = `${id ? 'Edit' : 'Add'} ${type === 'research' ? 'source' : type}`;
-  $('#deleteBtn').classList.toggle('hidden', !id);
-  const fields = schemas[type].map(([key,label,inputType,klass,options]) => fieldHTML(key,label,inputType,klass,options,item[key])).join('');
-  $('#formFields').innerHTML = fields;
-  $('#editorDialog').showModal();
-}
-function fieldHTML(key,label,type,klass='',options=[],value=''){
-  const val = value ?? '';
-  if(type === 'select') return `<label class="${klass}">${label}<select name="${key}"><option value=""></option>${options.map(o=>`<option ${o===val?'selected':''}>${esc(o)}</option>`).join('')}</select></label>`;
-  if(type === 'textarea') return `<label class="${klass}">${label}<textarea name="${key}">${esc(val)}</textarea></label>`;
-  return `<label class="${klass}">${label}<input name="${key}" type="${type}" value="${esc(val)}"></label>`;
-}
-function saveEditor(){
-  const form = new FormData($('#editorDialog form'));
-  const item = { id: editing.id || uid() };
-  schemas[editing.type].forEach(([key]) => item[key] = form.get(key) || '');
-  ['progress','wordGoal','currentWords','year'].forEach(k => { if(k in item) item[k] = Number(item[k] || 0); });
-  const collection = editing.type === 'chapter' ? 'chapters' : editing.type === 'task' ? 'tasks' : editing.type === 'research' ? 'research' : 'schedule';
-  if(editing.id) state[collection] = state[collection].map(x => x.id === editing.id ? item : x);
-  else state[collection].push(item);
-  $('#editorDialog').close(); render(); scheduleSave();
-}
-function deleteCurrent(){
-  const collection = editing.type === 'chapter' ? 'chapters' : editing.type === 'task' ? 'tasks' : editing.type === 'research' ? 'research' : 'schedule';
-  state[collection] = state[collection].filter(x => x.id !== editing.id);
-  $('#editorDialog').close(); render(); scheduleSave();
-}
-
-function render(){
-  renderDashboard(); renderChapters(); renderTasks(); renderResearch(); renderSchedule();
-}
+function render(){ renderDashboard(); renderChapters(); renderResearch(); renderTasks(); renderSchedule(); }
 function renderDashboard(){
-  const today = todayISO(), twoWeeks = addDaysISO(14);
-  const todayItems = state.schedule.filter(x => x.date === today && x.status !== 'Complete' && x.status !== 'Canceled');
-  const coming = state.schedule.filter(x => x.date > today && x.date <= twoWeeks && x.status !== 'Complete' && x.status !== 'Canceled').sort((a,b)=>(a.date||'').localeCompare(b.date||''));
-  const reading = state.research.filter(x => x.status === 'Reading');
-  $('#todayList').innerHTML = listItems(todayItems, 'schedule', x => `${x.category || 'Schedule'} • ${x.type || ''}`) || empty('Nothing scheduled for today.');
-  $('#comingList').innerHTML = listItems(coming, 'schedule', x => `${fmtDate(x.date)} • ${x.category || ''}`) || empty('Nothing coming up in the next two weeks.');
-  $('#readingList').innerHTML = listItems(reading, 'research', x => `${x.authors || 'No author yet'}${x.year ? ' • '+x.year : ''}`) || empty('No sources marked as Reading yet.');
-  const avg = state.chapters.length ? Math.round(state.chapters.reduce((s,c)=>s+Number(c.progress||0),0)/state.chapters.length) : 0;
-  $('#overallProgress').textContent = `${avg}%`;
-  $('#chapterSnapshot').innerHTML = state.chapters.map(c => `<div class="mini-chapter"><strong>${esc(c.title)}</strong><div class="progress"><div class="bar" style="width:${Number(c.progress||0)}%"></div></div><span class="meta">${c.progress||0}% • ${esc(c.status||'')}</span></div>`).join('');
+  const today=todayISO(), twoWeeks=addDays(14);
+  const todayItems=[...state.tasks.filter(t=>t.today||t.dueDate===today), ...state.schedule.filter(s=>s.date===today && s.status!=='Complete')];
+  const reading=state.research.filter(r=>r.status==='Reading');
+  const coming=state.schedule.filter(s=>s.date>today && s.date<=twoWeeks && s.status!=='Complete').sort((a,b)=>(a.date||'').localeCompare(b.date||'')).slice(0,6);
+  $('#todayList').innerHTML=listMini(todayItems, x=>x.task||x.event, x=>x.focus||x.category||x.priority||'');
+  $('#readingList').innerHTML=listMini(reading, x=>x.title, x=>`${x.authors||''} ${x.year?`• ${x.year}`:''}`);
+  $('#comingList').innerHTML=listMini(coming, x=>x.event, x=>`${fmtDate(x.date)} • ${x.category||''}`);
+  const chapters=state.chapters.sort((a,b)=>(a.order||0)-(b.order||0)); const avg=chapters.length?Math.round(chapters.reduce((s,c)=>s+Number(c.progress||0),0)/chapters.length):0;
+  $('#overallProgress').textContent=avg+'%';
+  $('#chapterProgress').innerHTML=chapters.map(c=>progressHTML(c.title,c.progress||0)).join('')||'<p class="empty">No chapters yet.</p>';
+  $('#snapshot').innerHTML=`<div class="stat"><b>Tasks</b><span>${state.tasks.length}</span></div><div class="stat"><b>Sources</b><span>${state.research.length}</span></div><div class="stat"><b>Reading</b><span>${reading.length}</span></div><div class="stat"><b>Upcoming</b><span>${coming.length}</span></div>`;
 }
-function listItems(items,type,metaFn){
-  return items.map(x => `<div class="item"><div><h4>${esc(x.title)}</h4><div class="meta">${esc(metaFn(x))}</div></div><button onclick="window.editItem('${type}','${x.id}')">Edit</button></div>`).join('');
-}
-function empty(text){ return `<div class="empty">${esc(text)}</div>`; }
-function renderChapters(){
-  $('#chaptersGrid').innerHTML = state.chapters.map(c => `<article class="chapter-card"><h3>${esc(c.title)}</h3><div class="progress"><div class="bar" style="width:${Number(c.progress||0)}%"></div></div><div class="meta"><span class="pill">${c.progress||0}%</span><span class="pill">${esc(c.status||'')}</span></div><p><strong>Focus:</strong> ${esc(c.currentFocus||'')}</p><p><strong>Words:</strong> ${Number(c.currentWords||0).toLocaleString()} / ${Number(c.wordGoal||0).toLocaleString()}</p><button onclick="window.editItem('chapter','${c.id}')">Edit chapter</button></article>`).join('');
-}
-function renderTasks(){
-  $('#tasksTable').innerHTML = table(['Task','Focus','Priority','Status','Due','Notes',''], state.tasks, x => [x.title,x.focus,x.priority,x.status,fmtDate(x.dueDate),x.notes,actions('task',x.id)]);
-}
-function renderResearch(){
-  $('#researchTable').innerHTML = table(['Title','Authors','Year','Status','Theme','Citation',''], state.research, x => [x.title,x.authors,x.year,x.status,x.theme,x.apaCitation,actions('research',x.id)]);
-}
-function renderSchedule(){
-  const sorted = [...state.schedule].sort((a,b)=>(a.date||'').localeCompare(b.date||''));
-  $('#scheduleTable').innerHTML = table(['Event','Date','Category','Type','Priority','Status',''], sorted, x => [x.title,fmtDate(x.date),x.category,x.type,x.priority,x.status,actions('schedule',x.id)]);
-}
-function table(headers, rows, map){
-  if(!rows.length) return empty('No items yet. Use the Add button to create one.');
-  return `<table class="data-table"><thead><tr>${headers.map(h=>`<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${map(r).map(v=>`<td>${v ?? ''}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
-}
-function actions(type,id){ return `<div class="row-actions"><button onclick="window.editItem('${type}','${id}')">Edit</button></div>`; }
-window.editItem = openEditor;
-function fmtDate(date){
-  if(!date) return '';
-  const d = new Date(`${date}T12:00:00`);
-  return d.toLocaleDateString([], {month:'short', day:'numeric', year:'numeric'});
-}
-function esc(v){ return String(v ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function listMini(arr,title,sub){ return arr.length? arr.slice(0,6).map(x=>`<div class="mini-item"><b>${esc(title(x))}</b><small>${esc(sub(x)||'')}</small></div>`).join(''):'<p class="empty">Nothing here yet.</p>'; }
+function progressHTML(title,p){ return `<div class="progress-row"><div class="progress-label"><span>${esc(title)}</span><span>${Number(p)||0}%</span></div><div class="bar"><span style="width:${Math.max(0,Math.min(100,Number(p)||0))}%"></span></div></div>`; }
+function renderChapters(){ const chapters=state.chapters.sort((a,b)=>(a.order||0)-(b.order||0)); $('#chaptersGrid').innerHTML=chapters.map(c=>`<article class="chapter-card"><h3>${esc(c.title)}</h3><div class="meta"><span class="chip">${esc(c.status||'')}</span><span class="chip">${c.progress||0}%</span></div>${progressHTML('Progress',c.progress||0)}<p><b>Focus:</b> ${esc(c.currentFocus||'Not set')}</p><p><b>Words:</b> ${c.currentWords||0} / ${c.wordGoal||0}</p><p>${esc(c.notes||'')}</p><div class="record-actions"><button class="small-btn" onclick="editItem('chapter','${c.id}')">Edit</button></div></article>`).join(''); }
+function renderResearch(){ const q=($('#researchSearch')?.value||'').toLowerCase(); const items=state.research.filter(r=>JSON.stringify(r).toLowerCase().includes(q)).sort((a,b)=>(b.year||0)-(a.year||0)); $('#researchGrid').innerHTML=items.map(r=>`<article class="record-card"><h3>${esc(r.title||'Untitled source')}</h3><div class="meta"><span class="chip">${esc(r.status||'')}</span><span class="chip">${esc(r.theme||'No theme')}</span><span class="chip">${esc(r.year||'')}</span></div><p><b>Authors:</b> ${esc(r.authors||'')}</p><p><b>Journal/Book:</b> ${esc(r.journal||'')}</p><p>${esc((r.notes||r.citation||'').slice(0,180))}</p><div class="record-actions"><button class="small-btn" onclick="editItem('research','${r.id}')">Edit</button><button class="small-btn danger" onclick="deleteItem('research','${r.id}')">Delete</button></div></article>`).join('')||'<p class="empty">No sources yet.</p>'; }
+function renderTasks(){ const q=($('#taskSearch')?.value||'').toLowerCase(); const items=state.tasks.filter(t=>JSON.stringify(t).toLowerCase().includes(q)).sort((a,b)=>(a.dueDate||'9999').localeCompare(b.dueDate||'9999')); $('#taskGrid').innerHTML=items.map(t=>`<article class="record-card"><h3>${esc(t.task||'Untitled task')}</h3><div class="meta"><span class="chip">${esc(t.status||'')}</span><span class="chip">${esc(t.priority||'')}</span><span class="chip">${esc(t.focus||'')}</span>${t.today?'<span class="chip">Today</span>':''}</div><p><b>Due:</b> ${fmtDate(t.dueDate)}</p><p>${esc(t.details||'')}</p><div class="record-actions"><button class="small-btn" onclick="editItem('task','${t.id}')">Edit</button><button class="small-btn danger" onclick="deleteItem('tasks','${t.id}')">Delete</button></div></article>`).join('')||'<p class="empty">No tasks yet.</p>'; }
+function renderSchedule(){ const q=($('#scheduleSearch')?.value||'').toLowerCase(); const items=state.schedule.filter(s=>JSON.stringify(s).toLowerCase().includes(q)).sort((a,b)=>(a.date||'9999').localeCompare(b.date||'9999')); $('#scheduleGrid').innerHTML=items.map(s=>`<article class="timeline-item"><div class="date-badge">${fmtDate(s.date)}</div><div><h3>${esc(s.event||'Untitled event')}</h3><div class="meta"><span class="chip">${esc(s.category||'')}</span><span class="chip">${esc(s.type||'')}</span><span class="chip">${esc(s.status||'')}</span></div><p>${esc(s.notes||'')}</p><div class="record-actions"><button class="small-btn" onclick="editItem('schedule','${s.id}')">Edit</button><button class="small-btn danger" onclick="deleteItem('schedule','${s.id}')">Delete</button></div></div></article>`).join('')||'<p class="empty">No scheduled items yet.</p>'; }
 
-$('#exportBtn').addEventListener('click', () => {
-  const blob = new Blob([JSON.stringify(state,null,2)], {type:'application/json'});
-  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `my-dip-backup-${todayISO()}.json`; a.click(); URL.revokeObjectURL(a.href);
-});
-$('#importFile').addEventListener('change', async ev => {
-  const file = ev.target.files[0]; if(!file) return;
-  const text = await file.text();
-  state = { ...defaultData(), ...JSON.parse(text) };
-  render(); scheduleSave(); ev.target.value = '';
-});
+$('#exportBtn').onclick=()=>{ const data=JSON.stringify({tasks:state.tasks,research:state.research,schedule:state.schedule,chapters:state.chapters},null,2); const blob=new Blob([data],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='my-dissertation-dashboard-backup.json'; a.click(); };
+$('#importFile').onchange=async(e)=>{ const file=e.target.files[0]; if(!file) return; const data=JSON.parse(await file.text()); if(!confirm('Import backup? This will add/overwrite items with matching IDs.')) return; for(const col of ['tasks','research','schedule','chapters']){ for(const item of data[col]||[]){ const {id,...rest}=item; await setDoc(id?dpath(col,id):doc(path(col)), rest, {merge:true}); } } toast('Import complete'); };
