@@ -1,39 +1,32 @@
-# My Dissertation Dashboard v2.0 Complete
+# My Dissertation Dashboard
 
-A cloud-synced Dissertation in Practice dashboard using Firebase Authentication, Firestore, and GitHub Pages.
+A private, cloud-synced dissertation workspace using GitHub Pages, Firebase Authentication, and Firestore.
 
-## Files
-- `index.html` – app layout
-- `style.css` – soft red/white design with black text
-- `script.js` – app logic and Firestore sync
-- `firebase-config.js` – Firebase project connection
-- `firestore.rules` – recommended user-private database rules
+## Version 3.0 - Final Research Workspace
 
-## Update GitHub
-Copy all files into your `CBW-Dip` folder, keeping your current `firebase-config.js` if it already works. Commit in GitHub Desktop with:
+This release keeps the working login/Firebase setup and focuses on the research workflow:
 
-`Version 2.0 - Complete dissertation dashboard app`
+- Research Library is now a citation list instead of cards.
+- Clicking a citation opens a right-side source workspace.
+- Add Source includes APA citation, summary, quotes, notes, writing ideas, chapter links, and Zotero link/key.
+- Chapter pages show how many linked sources support each chapter.
+- PDF uploads/Firebase Storage have been removed from the active workflow so the app can stay on the free Firebase setup.
 
-Then push origin.
+## Files to replace
 
-## Version 2.1 PDF and Research List Update
+Replace these files in your `CBW-Dip` folder:
 
-This update adds:
+- `index.html`
+- `style.css`
+- `script.js`
+- `README.md`
 
-- Research Library list/table view instead of large cards
-- PDF upload field on research sources
-- New PDF Library section for coursework notes, readings, rubrics, syllabi, and other PDFs
-- PDF links that open uploaded files in a new browser tab
+Keep your existing:
 
-### Important Firebase Storage setup
+- `firebase-config.js`
+- `firestore.rules`
+- `storage.rules` if it exists
 
-To use PDF uploads, enable Firebase Storage:
+## Commit summary
 
-1. Firebase Console → Build → Storage
-2. Click **Get started**
-3. Choose the same region as your Firebase project when possible
-4. After Storage is created, open the **Rules** tab
-5. Paste the contents of `storage.rules`
-6. Click **Publish**
-
-Keep your existing `firebase-config.js` file. Do not replace it unless you intentionally need to reconnect Firebase.
+`Version 3.0 - Final research workspace`

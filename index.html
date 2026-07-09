@@ -38,9 +38,8 @@
       </div>
       <nav class="nav">
         <button class="nav-btn active" data-page="dashboard">🏠 Dashboard</button>
-        <button class="nav-btn" data-page="chapters">📘 Chapters</button>
         <button class="nav-btn" data-page="research">📚 Research Library</button>
-        <button class="nav-btn" data-page="documents">📎 PDF Library</button>
+        <button class="nav-btn" data-page="chapters">📘 Chapters</button>
         <button class="nav-btn" data-page="tasks">✅ Tasks</button>
         <button class="nav-btn" data-page="schedule">📅 Calendar</button>
         <button class="nav-btn" data-page="settings">⚙️ Settings</button>
@@ -74,7 +73,7 @@
         </div>
         <div class="grid cards-3">
           <article class="panel"><h3>🎯 Today</h3><div id="todayList" class="mini-list"></div></article>
-          <article class="panel"><h3>📖 Currently Reading</h3><div id="readingList" class="mini-list"></div></article>
+          <article class="panel"><h3>📚 Recent Sources</h3><div id="recentSourcesList" class="mini-list"></div></article>
           <article class="panel"><h3>👀 Coming Up</h3><div id="comingList" class="mini-list"></div></article>
         </div>
         <div class="grid cards-2">
@@ -83,18 +82,25 @@
         </div>
       </section>
 
+      <section id="research" class="page">
+        <div class="toolbar research-toolbar">
+          <input id="researchSearch" placeholder="Search citations, notes, quotes, or chapters...">
+          <button id="addResearchBtn" class="primary">+ Add Source</button>
+        </div>
+        <div class="research-workspace">
+          <aside class="citation-pane">
+            <div class="pane-head">
+              <h3>Citations</h3>
+              <span id="sourceCount" class="muted">0 sources</span>
+            </div>
+            <div id="citationList" class="citation-list"></div>
+          </aside>
+          <article id="sourceDetail" class="source-detail"></article>
+        </div>
+      </section>
+
       <section id="chapters" class="page">
         <div id="chaptersGrid" class="grid cards-5"></div>
-      </section>
-
-      <section id="research" class="page">
-        <div class="toolbar"><input id="researchSearch" placeholder="Search title, author, theme, notes..."><button id="addResearchBtn" class="primary">+ Add Source</button></div>
-        <div id="researchGrid" class="record-grid"></div>
-      </section>
-
-      <section id="documents" class="page">
-        <div class="toolbar"><input id="documentSearch" placeholder="Search PDFs, course notes, or files..."><button id="addDocumentBtn" class="primary">+ Add PDF</button></div>
-        <div id="documentGrid" class="record-grid"></div>
       </section>
 
       <section id="tasks" class="page">
@@ -115,7 +121,7 @@
             <button id="exportBtn" class="secondary">Export Backup</button>
             <label class="secondary file-label">Import Backup<input id="importFile" type="file" accept="application/json" hidden></label>
           </div>
-          <p class="hint">Use Export before big updates. Import can restore tasks, research, schedule, and chapters.</p>
+          <p class="hint">Use Export before any future update. Import can restore tasks, research, schedule, and chapters.</p>
         </article>
       </section>
 
